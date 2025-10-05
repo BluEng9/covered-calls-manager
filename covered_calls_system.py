@@ -12,8 +12,26 @@ from scipy.stats import norm
 import logging
 import json
 
+# Setup logging first
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Advanced Greeks calculations
+try:
+    from blackscholes import BlackScholesCall
+    BLACKSCHOLES_AVAILABLE = True
+except ImportError:
+    BLACKSCHOLES_AVAILABLE = False
+    logger.warning("blackscholes library not available. Using basic Greeks calculations.")
+
+# Implied Volatility calculations
+try:
+    from py_vollib.black_scholes import black_scholes as bs_price
+    from py_vollib.black_scholes.implied_volatility import implied_volatility as calc_iv
+    VOLLIB_AVAILABLE = True
+except ImportError:
+    VOLLIB_AVAILABLE = False
+    logger.warning("py_vollib library not available. IV calculations limited.")
 
 
 class OptionType(Enum):
@@ -151,7 +169,7 @@ class CoveredCall:
 
 
 class GreeksCalculator:
-    """Calculate option Greeks using Black-Scholes model"""
+    """Calculate option Greeks using Black-Scholes model (enhanced with blackscholes library)"""
 
     @staticmethod
     def calculate_d1(S: float, K: float, T: float, r: float, sigma: float) -> float:
@@ -166,7 +184,15 @@ class GreeksCalculator:
     @classmethod
     def calculate_delta(cls, S: float, K: float, T: float, r: float, sigma: float,
                        option_type: OptionType) -> float:
-        """Calculate delta"""
+        """Calculate delta (enhanced with blackscholes library if available)"""
+        if BLACKSCHOLES_AVAILABLE and option_type == OptionType.CALL:
+            try:
+                bs = BlackScholesCall(S=S, K=K, T=T, r=r, sigma=sigma)
+                return bs.delta()
+            except:
+                pass  # Fall back to basic calculation
+
+        # Fallback to basic calculation
         d1 = cls.calculate_d1(S, K, T, r, sigma)
         if option_type == OptionType.CALL:
             return norm.cdf(d1)
@@ -175,14 +201,30 @@ class GreeksCalculator:
 
     @classmethod
     def calculate_gamma(cls, S: float, K: float, T: float, r: float, sigma: float) -> float:
-        """Calculate gamma"""
+        """Calculate gamma (enhanced with blackscholes library if available)"""
+        if BLACKSCHOLES_AVAILABLE:
+            try:
+                bs = BlackScholesCall(S=S, K=K, T=T, r=r, sigma=sigma)
+                return bs.gamma()
+            except:
+                pass
+
+        # Fallback to basic calculation
         d1 = cls.calculate_d1(S, K, T, r, sigma)
         return norm.pdf(d1) / (S * sigma * np.sqrt(T))
 
     @classmethod
     def calculate_theta(cls, S: float, K: float, T: float, r: float, sigma: float,
                        option_type: OptionType) -> float:
-        """Calculate theta (daily decay)"""
+        """Calculate theta - daily time decay (enhanced with blackscholes library if available)"""
+        if BLACKSCHOLES_AVAILABLE and option_type == OptionType.CALL:
+            try:
+                bs = BlackScholesCall(S=S, K=K, T=T, r=r, sigma=sigma)
+                return bs.theta() / 365  # Convert to daily
+            except:
+                pass
+
+        # Fallback to basic calculation
         d1 = cls.calculate_d1(S, K, T, r, sigma)
         d2 = cls.calculate_d2(d1, sigma, T)
 
@@ -197,9 +239,38 @@ class GreeksCalculator:
 
     @classmethod
     def calculate_vega(cls, S: float, K: float, T: float, r: float, sigma: float) -> float:
-        """Calculate vega (sensitivity to IV)"""
+        """Calculate vega - sensitivity to IV (enhanced with blackscholes library if available)"""
+        if BLACKSCHOLES_AVAILABLE:
+            try:
+                bs = BlackScholesCall(S=S, K=K, T=T, r=r, sigma=sigma)
+                return bs.vega()
+            except:
+                pass
+
+        # Fallback to basic calculation
         d1 = cls.calculate_d1(S, K, T, r, sigma)
         return S * norm.pdf(d1) * np.sqrt(T) / 100  # Per 1% IV change
+
+    @classmethod
+    def calculate_implied_volatility(cls, market_price: float, S: float, K: float,
+                                    T: float, r: float, option_type: OptionType) -> Optional[float]:
+        """Calculate implied volatility from market price (using py_vollib if available)"""
+        if VOLLIB_AVAILABLE:
+            try:
+                flag = 'c' if option_type == OptionType.CALL else 'p'
+                iv = calc_iv(
+                    price=market_price,
+                    S=S,
+                    K=K,
+                    t=T,
+                    r=r,
+                    flag=flag
+                )
+                return iv * 100  # Convert to percentage
+            except:
+                pass
+
+        return None  # Cannot calculate without py_vollib
 
 
 class CoveredCallStrategy:

@@ -4,7 +4,8 @@ scipy>=1.10.0
 pandas>=2.0.0
 
 # Interactive Brokers
-ib-insync>=0.9.86
+ib-async>=2.0.0  # Modern successor to ib-insync
+nest-asyncio>=1.5.0  # For Python 3.13 compatibility
 
 # Web Dashboard
 streamlit>=1.28.0
@@ -27,3 +28,7 @@ mypy>=1.5.0
 # Utilities
 python-dateutil>=2.8.2
 pytz>=2023.3
+
+# Advanced Options Pricing & Greeks
+blackscholes>=0.2.0  # Advanced Greeks calculations
+py-vollib>=1.0.1  # Implied Volatility calculations

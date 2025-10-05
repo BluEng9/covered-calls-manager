@@ -185,80 +185,6 @@ def account_overview():
         st.error(f"Error fetching account data: {e}")
 
 
-def active_positions_table():
-    """Display active covered call positions with P&L and Greeks"""
-    st.header("📊 Active Covered Call Positions")
-
-    if not st.session_state.connected:
-        st.warning("⚠️ Not connected to IBKR. Please connect in the sidebar.")
-        return
-
-    try:
-        ibkr = st.session_state.ibkr
-        positions = ibkr.get_covered_call_positions()
-
-        if not positions:
-            st.info("ℹ️ No active covered call positions found")
-            return
-
-        # Convert to DataFrame
-        df = pd.DataFrame(positions)
-
-        # Format columns
-        df['option_expiry'] = pd.to_datetime(df['option_expiry']).dt.strftime('%Y-%m-%d')
-        df['stock_price'] = df['stock_price'].apply(lambda x: f"${x:.2f}")
-        df['option_strike'] = df['option_strike'].apply(lambda x: f"${x:.2f}")
-        df['premium_received'] = df['premium_received'].apply(lambda x: f"${x:.2f}")
-        df['current_option_value'] = df['current_option_value'].apply(lambda x: f"${x:.2f}")
-        df['unrealized_pnl'] = df['unrealized_pnl'].apply(lambda x: f"${x:.2f}")
-        df['delta'] = df['delta'].apply(lambda x: f"{x:.3f}" if x is not None else "N/A")
-        df['theta'] = df['theta'].apply(lambda x: f"{x:.3f}" if x is not None else "N/A")
-
-        # Rename columns for display
-        df = df.rename(columns={
-            'symbol': 'Symbol',
-            'stock_qty': 'Shares',
-            'stock_price': 'Stock Price',
-            'option_strike': 'Strike',
-            'option_expiry': 'Expiry',
-            'option_dte': 'DTE',
-            'contracts': 'Contracts',
-            'premium_received': 'Premium',
-            'current_option_value': 'Current Value',
-            'unrealized_pnl': 'P&L',
-            'delta': 'Delta',
-            'theta': 'Theta'
-        })
-
-        # Display table
-        st.dataframe(
-            df,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        # Action buttons for each position
-        st.markdown("### Position Actions")
-        for idx, pos in enumerate(positions):
-            with st.expander(f"📌 {pos['symbol']} - ${pos['option_strike']:.2f} ({pos['option_dte']} DTE)"):
-                col1, col2, col3 = st.columns(3)
-
-                with col1:
-                    if st.button(f"📊 Details", key=f"details_{idx}"):
-                        st.info("Details view coming soon...")
-
-                with col2:
-                    if st.button(f"🔄 Roll", key=f"roll_{idx}"):
-                        st.info("Roll functionality coming soon...")
-
-                with col3:
-                    if st.button(f"❌ Close", key=f"close_{idx}"):
-                        st.warning("Close functionality coming soon...")
-
-    except Exception as e:
-        st.error(f"Error fetching positions: {e}")
-
-
 def portfolio_summary():
     """Display portfolio summary"""
     st.header("💼 Portfolio Summary")
@@ -539,100 +465,9 @@ def strategy_finder():
                             st.write(f"Return: {premium_pct:.2f}%")
                             st.write(f"Annualized: {annualized:.2f}%")
 
-                        # Action button with confirmation
-                        if f'confirm_sell_{i}' not in st.session_state:
-                            st.session_state[f'confirm_sell_{i}'] = False
-
-                        col_btn1, col_btn2 = st.columns([1, 3])
-
-                        with col_btn1:
-                            if st.button(f"🚀 Sell Covered Call", key=f"sell_{i}", type="primary"):
-                                st.session_state[f'confirm_sell_{i}'] = True
-
-                        # Confirmation dialog
-                        if st.session_state.get(f'confirm_sell_{i}', False):
-                            st.warning("⚠️ **Confirm Trade**")
-
-                            # Display trade summary
-                            st.write(f"**Symbol:** {selected_symbol}")
-                            st.write(f"**Strike:** ${option.strike:.2f}")
-                            st.write(f"**Expiration:** {option.expiration.strftime('%Y-%m-%d')}")
-                            st.write(f"**Premium:** ${total_premium:.2f}")
-                            st.write(f"**Contracts:** {contracts}")
-
-                            # Risk validation
-                            try:
-                                from risk_manager import RiskManager
-                                risk_manager = RiskManager()
-
-                                # Get account value from session state or estimate
-                                account_value = st.session_state.get('account_value',
-                                                                    sum(pos.stock.market_value for pos in portfolio.positions) if portfolio.positions else 100000)
-
-                                # Convert existing positions for risk check
-                                existing_positions = []
-                                for pos in portfolio.positions:
-                                    existing_positions.append({
-                                        'symbol': pos.stock.symbol,
-                                        'quantity': pos.stock.quantity,
-                                        'price': pos.stock.current_price,
-                                        'has_covered_call': True,
-                                        'option_delta': pos.option.delta if hasattr(pos.option, 'delta') else 0.5,
-                                        'days_to_expiry': pos.option.days_to_expiration
-                                    })
-
-                                approved, reason = risk_manager.validate_new_position(
-                                    symbol=selected_symbol,
-                                    contracts=contracts,
-                                    strike=option.strike,
-                                    current_price=selected_stock.current_price,
-                                    account_value=account_value,
-                                    existing_positions=existing_positions
-                                )
-
-                                if approved:
-                                    st.success(reason)
-                                else:
-                                    st.error(reason)
-
-                            except Exception as e:
-                                st.warning(f"Risk validation unavailable: {str(e)}")
-                                approved = True  # Allow trade if risk check fails
-
-                            col_confirm1, col_confirm2 = st.columns(2)
-
-                            with col_confirm1:
-                                if st.button("✅ Execute Trade", key=f"execute_{i}", disabled=not approved):
-                                    try:
-                                        # Get IBKR connector from session state
-                                        ibkr = st.session_state.get('ibkr')
-                                        if not ibkr or not ibkr.connected:
-                                            st.error("❌ Not connected to IBKR. Please connect first.")
-                                        else:
-                                            # Execute the trade
-                                            expiration_str = option.expiration.strftime('%Y%m%d')
-                                            trade = ibkr.sell_covered_call(
-                                                symbol=selected_symbol,
-                                                quantity=contracts,
-                                                strike=option.strike,
-                                                expiration=expiration_str,
-                                                limit_price=option.premium  # Use current premium as limit
-                                            )
-
-                                            if trade:
-                                                st.success(f"✅ Trade executed successfully!")
-                                                st.session_state[f'confirm_sell_{i}'] = False
-                                                st.rerun()
-                                            else:
-                                                st.error("❌ Trade failed. Check logs or read-only mode.")
-
-                                    except Exception as e:
-                                        st.error(f"❌ Error: {str(e)}")
-
-                            with col_confirm2:
-                                if st.button("❌ Cancel", key=f"cancel_{i}"):
-                                    st.session_state[f'confirm_sell_{i}'] = False
-                                    st.rerun()
+                        # Action button
+                        if st.button(f"📝 Create Position #{i}", key=f"create_{i}"):
+                            st.info("Position creation feature coming soon!")
 
             except Exception as e:
                 st.error(f"Error: {e}")
@@ -779,11 +614,6 @@ def main():
 
     # Account overview
     account_overview()
-
-    st.markdown("---")
-
-    # Active covered call positions
-    active_positions_table()
 
     st.markdown("---")
 

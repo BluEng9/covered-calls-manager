@@ -3,12 +3,18 @@ Interactive Brokers Connector for Covered Calls System
 Handles connection, data retrieval, and order execution with IBKR TWS/Gateway
 """
 
-from ib_insync import *
+import asyncio
+import nest_asyncio
+
+# Fix for Python 3.13 event loop issue
+nest_asyncio.apply()
+
+from ib_async import *
+from ib_async import Stock as IBStock  # Rename to avoid conflict
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 import pandas as pd
-import asyncio
 import logging
 from covered_calls_system import (
     Stock, OptionContract, OptionType, CoveredCall,
@@ -40,6 +46,12 @@ class IBKRConnector:
 
     def connect(self) -> bool:
         """Connect to IBKR TWS or Gateway"""
+        # Check if already connected
+        if self.ib.isConnected():
+            logger.info("Already connected to IBKR")
+            self.connected = True
+            return True
+
         try:
             self.ib.connect(
                 self.config.host,
@@ -52,6 +64,7 @@ class IBKRConnector:
             return True
         except Exception as e:
             logger.error(f"Failed to connect to IBKR: {e}")
+            self.connected = False
             return False
 
     def disconnect(self):
@@ -96,7 +109,7 @@ class IBKRConnector:
         stocks = []
 
         for pos in positions:
-            if isinstance(pos.contract, (IB.Stock, Stock)):
+            if isinstance(pos.contract, IBStock):
                 # Get current market price
                 ticker = self.ib.reqMktData(pos.contract)
                 self.ib.sleep(1)  # Wait for data
@@ -133,6 +146,91 @@ class IBKRConnector:
         logger.info(f"Retrieved {len(options)} option positions")
         return options
 
+    def get_covered_call_positions(self) -> List[Dict]:
+        """
+        Get covered call positions (matched stock holdings + short call options)
+
+        Returns: List of dicts with:
+            - symbol: Stock symbol
+            - stock_qty: Number of shares held
+            - stock_price: Current stock price
+            - option_strike: Call option strike price
+            - option_expiry: Expiration date
+            - option_dte: Days to expiration
+            - contracts: Number of option contracts (negative for short)
+            - premium_received: Premium from selling the call
+            - current_option_value: Current market value of option
+            - unrealized_pnl: Unrealized P&L on the option
+            - delta: Option delta
+            - theta: Option theta
+        """
+        if not self.connected:
+            raise ConnectionError("Not connected to IBKR")
+
+        # Get all positions
+        positions = self.ib.positions()
+
+        # Separate stocks and options
+        stocks = {}
+        short_calls = []
+
+        for pos in positions:
+            if isinstance(pos.contract, IBStock):
+                stocks[pos.contract.symbol] = {
+                    'quantity': pos.position,
+                    'avg_cost': pos.avgCost,
+                    'current_price': pos.marketPrice
+                }
+            elif isinstance(pos.contract, Option):
+                if pos.contract.right == 'C' and pos.position < 0:  # Short call
+                    short_calls.append({
+                        'symbol': pos.contract.symbol,
+                        'strike': pos.contract.strike,
+                        'expiry': pos.contract.lastTradeDateOrContractMonth,
+                        'contracts': pos.position,
+                        'avg_cost': pos.avgCost,
+                        'market_value': pos.marketValue,
+                        'unrealized_pnl': pos.unrealizedPNL,
+                        'contract': pos.contract
+                    })
+
+        # Match short calls with stock holdings (covered calls)
+        covered_positions = []
+
+        for call in short_calls:
+            symbol = call['symbol']
+            if symbol in stocks and stocks[symbol]['quantity'] >= abs(call['contracts']) * 100:
+                # Calculate days to expiration
+                from datetime import datetime
+                expiry_str = call['expiry']
+                expiry_date = datetime.strptime(expiry_str, '%Y%m%d')
+                dte = (expiry_date - datetime.now()).days
+
+                # Get Greeks
+                ticker = self.ib.reqMktData(call['contract'], '', False, False)
+                self.ib.sleep(0.5)
+
+                delta = getattr(ticker, 'modelGreeks', None)
+                theta = getattr(ticker, 'modelGreeks', None)
+
+                covered_positions.append({
+                    'symbol': symbol,
+                    'stock_qty': stocks[symbol]['quantity'],
+                    'stock_price': stocks[symbol]['current_price'],
+                    'option_strike': call['strike'],
+                    'option_expiry': expiry_date,
+                    'option_dte': dte,
+                    'contracts': call['contracts'],
+                    'premium_received': -call['avg_cost'] * abs(call['contracts']) * 100,
+                    'current_option_value': call['market_value'],
+                    'unrealized_pnl': call['unrealized_pnl'],
+                    'delta': delta.delta if delta else None,
+                    'theta': delta.theta if delta else None
+                })
+
+        logger.info(f"Retrieved {len(covered_positions)} covered call positions")
+        return covered_positions
+
     # ==================== Market Data ====================
 
     def get_stock_price(self, symbol: str, exchange: str = "SMART") -> float:
@@ -140,7 +238,7 @@ class IBKRConnector:
         if not self.connected:
             raise ConnectionError("Not connected to IBKR")
 
-        contract = Stock(symbol, exchange, 'USD')
+        contract = IBStock(symbol, exchange, 'USD')
         ticker = self.ib.reqMktData(contract, '', False, False)
         self.ib.sleep(1)
 
@@ -156,7 +254,7 @@ class IBKRConnector:
         if not self.connected:
             raise ConnectionError("Not connected to IBKR")
 
-        stock = Stock(symbol, exchange, 'USD')
+        stock = IBStock(symbol, exchange, 'USD')
         self.ib.qualifyContracts(stock)
 
         # Get option chain
@@ -508,7 +606,7 @@ class IBKRConnector:
         if not self.connected:
             raise ConnectionError("Not connected to IBKR")
 
-        contract = Stock(symbol, 'SMART', 'USD')
+        contract = IBStock(symbol, 'SMART', 'USD')
         self.ib.qualifyContracts(contract)
 
         bars = self.ib.reqHistoricalData(
@@ -581,7 +679,7 @@ class IBKRConnector:
             raise ConnectionError("Not connected to IBKR")
 
         if sec_type == "STK":
-            contract = Stock(symbol, 'SMART', 'USD')
+            contract = IBStock(symbol, 'SMART', 'USD')
         else:
             contract = Contract(symbol=symbol, secType=sec_type)
 
