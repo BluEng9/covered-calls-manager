@@ -196,6 +196,21 @@ class DemoIBKRConnector:
 
         return options
 
+    def get_otm_calls(self, symbol: str, current_price: float, days_to_expiration: int = 30) -> List[Dict]:
+        """Get out-of-the-money call options"""
+        # Find closest expiration
+        today = datetime.now()
+        target_date = today + timedelta(days=days_to_expiration)
+        expiration = target_date.strftime('%Y%m%d')
+
+        # Get all call options for this expiration
+        all_options = self.get_call_options(symbol, expiration)
+
+        # Filter for OTM only (strike > current_price)
+        otm_options = [opt for opt in all_options if opt['strike'] > current_price]
+
+        return otm_options
+
     def sell_covered_call(self, symbol: str, quantity: int, strike: float,
                          expiration: str, limit_price: float = None):
         """Mock sell covered call - just return success"""

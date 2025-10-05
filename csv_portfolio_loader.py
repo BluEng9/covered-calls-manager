@@ -195,3 +195,17 @@ class PortfolioDataStore:
             'BuyingPower': 0,  # Not available from CSV
             'AvailableFunds': 0  # Not available from CSV
         }
+
+    def get_otm_calls(self, symbol: str, current_price: float, days_to_expiration: int = 30) -> List[Dict]:
+        """
+        CSV mode doesn't have access to live options data
+        Return empty list and show warning to user
+        """
+        return []
+
+    def get_covered_call_positions(self) -> List[Dict]:
+        """
+        CSV mode doesn't have access to live options positions
+        Return loaded options from CSV if any
+        """
+        return self.options

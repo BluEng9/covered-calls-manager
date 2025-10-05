@@ -29,6 +29,14 @@ from csv_portfolio_loader import CSVPortfolioLoader, PortfolioDataStore
 from covered_calls_backtester import CoveredCallBacktester
 
 
+# Helper function to handle both dict and object stock data
+def get_stock_attr(stock, attr_name, default=None):
+    """Get attribute from stock (dict or object)"""
+    if isinstance(stock, dict):
+        return stock.get(attr_name, default)
+    return getattr(stock, attr_name, default)
+
+
 # Page configuration
 st.set_page_config(
     page_title="Covered Calls Manager",
@@ -584,10 +592,13 @@ def strategy_finder():
     if st.button("🔍 Find Best Strikes"):
         with st.spinner("Analyzing options..."):
             try:
+                # Get current price (handle both dict and object)
+                current_price = get_stock_attr(selected_stock, 'current_price')
+
                 # Get OTM calls
                 options = ibkr.get_otm_calls(
                     selected_symbol,
-                    selected_stock.current_price,
+                    current_price,
                     days_to_expiration=target_dte
                 )
 
@@ -599,7 +610,7 @@ def strategy_finder():
                 strategy = CoveredCallStrategy(st.session_state.risk_level)
                 scored_options = strategy.find_best_strike(
                     options,
-                    selected_stock.current_price,
+                    current_price,
                     top_n=max_results
                 )
 
@@ -669,12 +680,12 @@ def strategy_finder():
                                 existing_positions = []
                                 for pos in portfolio.positions:
                                     existing_positions.append({
-                                        'symbol': pos.stock.symbol,
-                                        'quantity': pos.stock.quantity,
-                                        'price': pos.stock.current_price,
+                                        'symbol': get_stock_attr(pos.stock, 'symbol'),
+                                        'quantity': get_stock_attr(pos.stock, 'quantity'),
+                                        'price': get_stock_attr(pos.stock, 'current_price'),
                                         'has_covered_call': True,
-                                        'option_delta': pos.option.delta if hasattr(pos.option, 'delta') else 0.5,
-                                        'days_to_expiry': pos.option.days_to_expiration
+                                        'option_delta': get_stock_attr(pos.option, 'delta', 0.5),
+                                        'days_to_expiry': get_stock_attr(pos.option, 'days_to_expiration', 30)
                                     })
 
                                 approved, reason = risk_manager.validate_new_position(
