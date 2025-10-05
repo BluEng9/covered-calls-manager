@@ -24,6 +24,8 @@ from covered_calls_system import (
 from ibkr_connector import IBKRConnector, IBKRConfig
 from dashboard_risk_components import render_risk_dashboard, render_position_validator
 from risk_manager import RiskManager
+from demo_mode import DemoIBKRConnector
+from csv_portfolio_loader import CSVPortfolioLoader, PortfolioDataStore
 
 
 # Page configuration
@@ -79,6 +81,10 @@ class DashboardState:
             st.session_state.connected = False
         if 'risk_level' not in st.session_state:
             st.session_state.risk_level = RiskLevel.MODERATE
+        if 'portfolio_data' not in st.session_state:
+            st.session_state.portfolio_data = None
+        if 'csv_mode' not in st.session_state:
+            st.session_state.csv_mode = False
 
 
 def sidebar_config():
@@ -88,37 +94,92 @@ def sidebar_config():
 
     st.sidebar.subheader("IBKR Connection")
 
-    # Connection settings
-    host = st.sidebar.text_input("Host", value="127.0.0.1")
-    port = st.sidebar.number_input("Port", value=7497, step=1)
-    client_id = st.sidebar.number_input("Client ID", value=1, step=1)
-    readonly = st.sidebar.checkbox("Read-only mode", value=True)
+    # Demo mode toggle
+    demo_mode = st.sidebar.checkbox("🎮 Demo Mode (Sample Data)", value=False,
+                                     help="Use demo mode to explore features without connecting to IBKR")
 
-    # Connect/Disconnect button
-    if not st.session_state.connected:
-        if st.sidebar.button("🔌 Connect to IBKR"):
-            config = IBKRConfig(
-                host=host,
-                port=int(port),
-                client_id=int(client_id),
-                readonly=readonly
-            )
-            ibkr = IBKRConnector(config)
-            if ibkr.connect():
-                st.session_state.ibkr = ibkr
+    if demo_mode:
+        # Demo mode - use mock data
+        if not st.session_state.connected:
+            if st.sidebar.button("🎮 Start Demo"):
+                st.session_state.ibkr = DemoIBKRConnector()
                 st.session_state.connected = True
-                st.sidebar.success("✅ Connected!")
+                st.session_state.demo_mode = True
+                st.sidebar.success("✅ Demo Mode Active!")
                 st.rerun()
-            else:
-                st.sidebar.error("❌ Connection failed")
+        else:
+            st.sidebar.success("🎮 Demo Mode Active")
+            if st.sidebar.button("Stop Demo"):
+                st.session_state.connected = False
+                st.session_state.demo_mode = False
+                st.sidebar.info("Demo stopped")
+                st.rerun()
     else:
-        st.sidebar.success("✅ Connected to IBKR")
-        if st.sidebar.button("🔌 Disconnect"):
-            if st.session_state.ibkr:
-                st.session_state.ibkr.disconnect()
-            st.session_state.connected = False
-            st.sidebar.info("Disconnected")
-            st.rerun()
+        # Live mode - real IBKR connection
+        # Connection settings
+        host = st.sidebar.text_input("Host", value="127.0.0.1")
+        port = st.sidebar.number_input("Port", value=7497, step=1)
+        client_id = st.sidebar.number_input("Client ID", value=1, step=1)
+        readonly = st.sidebar.checkbox("Read-only mode", value=True)
+
+        # Connect/Disconnect button
+        if not st.session_state.connected:
+            if st.sidebar.button("🔌 Connect to IBKR"):
+                config = IBKRConfig(
+                    host=host,
+                    port=int(port),
+                    client_id=int(client_id),
+                    readonly=readonly
+                )
+                ibkr = IBKRConnector(config)
+                if ibkr.connect():
+                    st.session_state.ibkr = ibkr
+                    st.session_state.connected = True
+                    st.session_state.demo_mode = False
+                    st.sidebar.success("✅ Connected!")
+                    st.rerun()
+                else:
+                    st.sidebar.error("❌ Connection failed")
+        else:
+            st.sidebar.success("✅ Connected to IBKR")
+            if st.sidebar.button("🔌 Disconnect"):
+                if st.session_state.ibkr:
+                    st.session_state.ibkr.disconnect()
+                st.session_state.connected = False
+                st.session_state.demo_mode = False
+                st.sidebar.info("Disconnected")
+                st.rerun()
+
+    # CSV Upload Mode
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📁 CSV Portfolio Upload")
+
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload Portfolio CSV",
+        type=['csv'],
+        help="Upload IBKR portfolio export or simple format (Symbol,Quantity,AvgCost,CurrentPrice)"
+    )
+
+    if uploaded_file is not None:
+        try:
+            # Read CSV content
+            csv_content = uploaded_file.getvalue().decode('utf-8')
+
+            # Load portfolio data
+            if st.session_state.portfolio_data is None:
+                st.session_state.portfolio_data = PortfolioDataStore()
+
+            st.session_state.portfolio_data.load_from_csv(csv_content)
+            st.session_state.csv_mode = True
+            st.session_state.connected = True
+            st.session_state.ibkr = st.session_state.portfolio_data
+
+            st.sidebar.success(f"✅ Loaded {len(st.session_state.portfolio_data.stocks)} positions")
+            st.sidebar.info(f"Last updated: {st.session_state.portfolio_data.timestamp}")
+
+        except Exception as e:
+            st.sidebar.error(f"❌ Error loading CSV: {str(e)}")
+            st.session_state.csv_mode = False
 
     st.sidebar.markdown("---")
 
@@ -448,30 +509,64 @@ def strategy_finder():
         st.info("No stock positions found")
         return
 
-    # Select stock
+    # Select stock - handle both dict and object format
+    stock_symbols = []
+    for stock in stocks:
+        if isinstance(stock, dict):
+            stock_symbols.append(stock['symbol'])
+        else:
+            stock_symbols.append(stock.symbol)
+
     selected_symbol = st.selectbox(
         "Select Stock",
-        options=[stock.symbol for stock in stocks]
+        options=stock_symbols
     )
 
-    selected_stock = next((s for s in stocks if s.symbol == selected_symbol), None)
+    # Find selected stock
+    selected_stock = None
+    for s in stocks:
+        if isinstance(s, dict):
+            if s['symbol'] == selected_symbol:
+                selected_stock = s
+                break
+        else:
+            if s.symbol == selected_symbol:
+                selected_stock = s
+                break
 
     if not selected_stock:
         return
 
-    # Display stock info
+    # Display stock info - handle both dict and object format
+    def get_attr(obj, attr, default=0):
+        if isinstance(obj, dict):
+            return obj.get(attr, default)
+        return getattr(obj, attr, default)
+
+    current_price = get_attr(selected_stock, 'current_price')
+    quantity = get_attr(selected_stock, 'quantity')
+    avg_cost = get_attr(selected_stock, 'avg_cost')
+
+    # Calculate P&L if not in dict
+    if isinstance(selected_stock, dict):
+        unrealized_pnl = (current_price - avg_cost) * quantity
+        unrealized_pnl_pct = ((current_price - avg_cost) / avg_cost) * 100 if avg_cost > 0 else 0
+    else:
+        unrealized_pnl = get_attr(selected_stock, 'unrealized_pnl', 0)
+        unrealized_pnl_pct = get_attr(selected_stock, 'unrealized_pnl_pct', 0)
+
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Current Price", f"${selected_stock.current_price:.2f}")
+        st.metric("Current Price", f"${current_price:.2f}")
     with col2:
-        st.metric("Quantity", selected_stock.quantity)
+        st.metric("Quantity", int(quantity))
     with col3:
-        st.metric("Avg Cost", f"${selected_stock.avg_cost:.2f}")
+        st.metric("Avg Cost", f"${avg_cost:.2f}")
     with col4:
-        pnl_color = "profit-positive" if selected_stock.unrealized_pnl >= 0 else "profit-negative"
+        pnl_color = "profit-positive" if unrealized_pnl >= 0 else "profit-negative"
         st.markdown(
-            f"<div class='{pnl_color}'>P&L: ${selected_stock.unrealized_pnl:.2f} "
-            f"({selected_stock.unrealized_pnl_pct:.2f}%)</div>",
+            f"<div class='{pnl_color}'>P&L: ${unrealized_pnl:.2f} "
+            f"({unrealized_pnl_pct:.2f}%)</div>",
             unsafe_allow_html=True
         )
 

@@ -53,15 +53,55 @@ class IBKRConnector:
             return True
 
         try:
-            self.ib.connect(
-                self.config.host,
-                self.config.port,
-                clientId=self.config.client_id,
-                readonly=self.config.readonly
-            )
+            # Advanced fix for Streamlit asyncio event loop conflict
+            # Streamlit runs in its own event loop, but ib_async needs its own
+            import threading
+
+            # Try to disconnect any existing connection first
+            try:
+                if hasattr(self.ib, '_loop') and self.ib._loop:
+                    self.ib.disconnect()
+            except:
+                pass
+
+            # Get or create event loop for this thread
+            try:
+                loop = asyncio.get_running_loop()
+                # If we're in a running loop (Streamlit), we need to use run_in_executor
+                # to avoid "loop already running" error
+                logger.info("Detected running event loop (Streamlit)")
+
+                # Create a new IB instance with fresh event loop
+                self.ib = IB()
+
+                # Use the synchronous connect with timeout
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        self.ib.connect,
+                        self.config.host,
+                        self.config.port,
+                        clientId=self.config.client_id,
+                        readonly=self.config.readonly,
+                        timeout=10
+                    )
+                    future.result(timeout=15)
+
+            except RuntimeError:
+                # No running loop, we can use connect normally
+                logger.info("No running event loop, using direct connect")
+                self.ib.connect(
+                    self.config.host,
+                    self.config.port,
+                    clientId=self.config.client_id,
+                    readonly=self.config.readonly,
+                    timeout=10
+                )
+
             self.connected = True
             logger.info(f"Connected to IBKR on {self.config.host}:{self.config.port}")
             return True
+
         except Exception as e:
             logger.error(f"Failed to connect to IBKR: {e}")
             self.connected = False
