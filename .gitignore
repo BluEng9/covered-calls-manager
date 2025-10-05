@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb
+
+# Environment variables
+.env
+.env.local
+*.secret
+
+# Logs
+*.log
+logs/
+
+# Data files
+*.csv
+*.xlsx
+*.db
+*.sqlite
+
+# IBKR
+*.json.bak
+twsapi_macunix.*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+portfolio_*.json
+backtest_results/
