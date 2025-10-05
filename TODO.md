@@ -8,7 +8,7 @@
 ## 🔥 Priority 1: Critical Features (Missing Functionality)
 
 ### 1. Sell Covered Call from Dashboard
-**Status:** ❌ Not Started
+**Status:** ✅ COMPLETED (2025-10-06)
 **Effort:** Medium (2-3 hours)
 **Impact:** HIGH - Core functionality
 
@@ -41,7 +41,7 @@ if st.button("🚀 Sell Covered Call", key=f"sell_{strike}"):
 ---
 
 ### 2. Active Positions Management Table
-**Status:** ❌ Not Started
+**Status:** ✅ COMPLETED (2025-10-06)
 **Effort:** Medium (3-4 hours)
 **Impact:** HIGH - Position tracking
 
@@ -362,7 +362,7 @@ def get_otm_calls_cached(symbol, price, dte):
 ## 🐛 Known Bugs & Issues
 
 ### 18. Fix: Streamlit reruns losing connection
-**Status:** 🟡 Workaround exists
+**Status:** ✅ FIXED (2025-10-06)
 **Effort:** Low (30 min)
 
 **Issue:** When Streamlit reruns (e.g., button click), IBKR connection is lost
@@ -397,9 +397,9 @@ def get_otm_calls_cached(symbol, price, dte):
 ## 📊 Progress Summary
 
 **Total Tasks:** 19 major features + many sub-tasks
-**Completed:** 0
+**Completed:** 3 (Sell button, Positions table, Connection fix)
 **In Progress:** 0
-**Not Started:** 19
+**Not Started:** 16
 
 **Estimated Total Effort:** ~80-100 hours
 
