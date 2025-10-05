@@ -19,9 +19,11 @@ Advanced covered calls trading system with Interactive Brokers integration, real
 - **Paper & Live Trading**: Support for both paper and live accounts
 
 ### Web Dashboard
-- **Interactive UI**: Streamlit-based dashboard with real-time updates
+- **Interactive UI**: Streamlit-based dashboard with 5-tab organized interface
 - **Portfolio Overview**: Account summary and position tracking
 - **Strategy Finder**: Scan and score optimal strike prices
+- **Backtesting Engine**: Historical strategy analysis with 5 risk levels
+- **CSV Upload Mode**: Test strategies without IBKR connection
 - **Alert System**: Notifications for assignment risk, expirations, and opportunities
 - **Performance Charts**: Visual analytics for returns and Greeks exposure
 
@@ -79,11 +81,18 @@ streamlit run dashboard.py
 The dashboard will open in your browser at `http://localhost:8501`
 
 #### Dashboard Features:
-1. **Connect to IBKR**: Use sidebar to configure and connect
-2. **View Portfolio**: See all active covered call positions
-3. **Find Strategies**: Scan for optimal strike prices
-4. **Monitor Alerts**: Check assignment risks and expirations
-5. **Analyze Performance**: View charts and returns
+1. **Connect to IBKR**: Use sidebar to configure and connect (or upload CSV)
+2. **Tab 1 - Overview**: Account summary, portfolio, alerts, positions
+3. **Tab 2 - Strategy Finder**: Scan for optimal strike prices
+4. **Tab 3 - Active Positions**: Monitor open positions with expiration calendar
+5. **Tab 4 - Backtesting**: Historical strategy analysis with 5 risk levels
+6. **Tab 5 - Analytics**: Performance charts and returns
+
+#### CSV Upload Mode:
+For testing without IBKR connection:
+1. Click "Upload CSV" in sidebar
+2. Upload portfolio CSV (see `IBKR_PORTFOLIO_GUIDE.md` for format)
+3. All features work except live trading
 
 ### Using the Core System
 
@@ -247,17 +256,23 @@ if RollStrategy.should_roll(position, current_price):
 
 ```
 covered-calls-manager/
-├── covered_calls_system.py    # Core strategy engine (508 lines)
-├── ibkr_connector.py          # IBKR integration (596 lines)
-├── dashboard.py               # Streamlit dashboard (753 lines)
-├── test_system.py             # Test suite (294 lines)
+├── covered_calls_system.py         # Core strategy engine (508 lines)
+├── ibkr_connector.py               # IBKR integration (596 lines)
+├── dashboard.py                    # Streamlit dashboard with tabs (1072 lines)
+├── covered_calls_backtester.py     # Historical backtesting (368 lines)
+├── csv_portfolio_loader.py         # CSV upload mode (106 lines)
+├── demo_mode.py                    # Mock IBKR connector (153 lines)
+├── ibkr_portfolio_converter.py     # PDF parser for IBKR exports (119 lines)
+├── test_system.py                  # Test suite (294 lines)
 ├── tradingview_covered_calls.pine  # TradingView indicator
-├── requirements.txt           # Python dependencies
-├── README.md                  # This file
-└── setup_github.sh           # GitHub setup script
+├── requirements.txt                # Python dependencies
+├── IBKR_PORTFOLIO_GUIDE.md        # Hebrew portfolio upload guide
+├── README.md                       # This file
+├── TODO.md                         # Development roadmap
+└── setup_github.sh                 # GitHub setup script
 ```
 
-**Total:** ~2,150 lines of Python code + Pine Script + documentation
+**Total:** ~3,200 lines of Python code + Pine Script + documentation
 
 ## 🔧 Configuration
 
@@ -330,8 +345,13 @@ MIT License - See LICENSE file for details
 
 ## 🗺️ Roadmap
 
+### Completed Features:
+- [x] Backtesting engine with 5 strategy comparison
+- [x] CSV upload mode for testing without IBKR
+- [x] Modern dashboard with tabs
+- [x] IBKR PDF transaction history parser
+
 ### Planned Features:
-- [ ] Backtesting engine
 - [ ] Machine learning strike selection
 - [ ] Multi-leg strategies (spreads, collars)
 - [ ] Mobile app

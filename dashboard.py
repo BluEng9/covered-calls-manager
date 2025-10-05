@@ -26,6 +26,7 @@ from dashboard_risk_components import render_risk_dashboard, render_position_val
 from risk_manager import RiskManager
 from demo_mode import DemoIBKRConnector
 from csv_portfolio_loader import CSVPortfolioLoader, PortfolioDataStore
+from covered_calls_backtester import CoveredCallBacktester
 
 
 # Page configuration
@@ -861,6 +862,166 @@ def performance_charts():
             st.info("Risk management features require active portfolio positions")
 
 
+def backtesting_tab():
+    """Historical backtesting of covered calls strategies"""
+    st.header("📊 Strategy Backtesting")
+
+    st.markdown("""
+    Test different covered calls strategies on historical data to see what would have worked best.
+    """)
+
+    # Get available stocks
+    if not st.session_state.connected:
+        st.warning("⚠️ Connect to IBKR or upload CSV to see your positions")
+        return
+
+    ibkr = st.session_state.ibkr
+    stocks = ibkr.get_stock_positions()
+
+    if not stocks:
+        st.info("No stock positions found")
+        return
+
+    # Extract symbols
+    stock_symbols = []
+    for stock in stocks:
+        if isinstance(stock, dict):
+            stock_symbols.append(stock['symbol'])
+        else:
+            stock_symbols.append(stock.symbol)
+
+    # Backtester settings
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        selected_symbol = st.selectbox("📈 Symbol", options=stock_symbols)
+
+    with col2:
+        start_date = st.date_input(
+            "Start Date",
+            value=pd.to_datetime('2024-04-01'),
+            max_value=datetime.now().date()
+        )
+
+    with col3:
+        end_date = st.date_input(
+            "End Date",
+            value=datetime.now().date(),
+            max_value=datetime.now().date()
+        )
+
+    # Get quantity for selected symbol
+    selected_stock = None
+    for s in stocks:
+        symbol = s['symbol'] if isinstance(s, dict) else s.symbol
+        if symbol == selected_symbol:
+            selected_stock = s
+            break
+
+    if selected_stock:
+        quantity = selected_stock['quantity'] if isinstance(selected_stock, dict) else selected_stock.quantity
+        st.info(f"📊 Your position: {int(quantity)} shares of {selected_symbol}")
+    else:
+        quantity = 100
+
+    # Run backtest button
+    if st.button("🚀 Run Backtest", type="primary"):
+        try:
+            with st.spinner(f"Running backtest on {selected_symbol}..."):
+                # Create backtester
+                backtester = CoveredCallBacktester(
+                    symbol=selected_symbol,
+                    start_date=start_date.strftime('%Y-%m-%d'),
+                    end_date=end_date.strftime('%Y-%m-%d'),
+                    quantity=int(quantity)
+                )
+
+                # Compare strategies
+                comparison = backtester.compare_strategies()
+
+                st.success("✅ Backtest Complete!")
+
+                # Display results table
+                st.subheader("📊 Strategy Comparison")
+                st.dataframe(comparison, use_container_width=True)
+
+                # Create visualization
+                st.subheader("📈 Returns Comparison")
+
+                # Extract numeric values for plotting
+                comparison_plot = comparison.copy()
+                comparison_plot['Total Return $'] = comparison['Total Return'].str.replace('$', '').str.replace(',', '').astype(float)
+                comparison_plot['Annualized %'] = comparison['Annualized %'].str.replace('%', '').astype(float)
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    fig1 = px.bar(
+                        comparison_plot,
+                        x='Strategy',
+                        y='Total Return $',
+                        title="Total Return by Strategy",
+                        labels={'Total Return $': 'Total Return ($)'}
+                    )
+                    fig1.update_xaxes(tickangle=-45)
+                    st.plotly_chart(fig1, use_container_width=True)
+
+                with col2:
+                    fig2 = px.bar(
+                        comparison_plot,
+                        x='Strategy',
+                        y='Annualized %',
+                        title="Annualized Return by Strategy",
+                        labels={'Annualized %': 'Annualized Return (%)'},
+                        color='Annualized %',
+                        color_continuous_scale='RdYlGn'
+                    )
+                    fig2.update_xaxes(tickangle=-45)
+                    st.plotly_chart(fig2, use_container_width=True)
+
+                # Insights
+                st.subheader("💡 Key Insights")
+
+                # Best performing strategy
+                best_idx = comparison_plot['Total Return $'].idxmax()
+                best_strategy = comparison.iloc[best_idx]
+
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    st.metric(
+                        "🏆 Best Strategy",
+                        best_strategy['Strategy'].split('(')[0].strip(),
+                        delta=best_strategy['Total Return']
+                    )
+
+                with col2:
+                    st.metric(
+                        "📊 Annualized Return",
+                        best_strategy['Annualized %']
+                    )
+
+                with col3:
+                    st.metric(
+                        "✅ Win Rate",
+                        best_strategy['Win Rate']
+                    )
+
+                # Export option
+                csv = comparison.to_csv(index=False)
+                st.download_button(
+                    label="💾 Download Results (CSV)",
+                    data=csv,
+                    file_name=f"backtest_{selected_symbol}_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+
+        except Exception as e:
+            st.error(f"❌ Error running backtest: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
+
+
 def main():
     """Main dashboard function"""
     # Initialize state
@@ -872,45 +1033,43 @@ def main():
     # Main content
     st.title("📈 Covered Calls Management Dashboard")
 
-    # Account overview
-    account_overview()
+    # Create tabs for organized navigation
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📊 Overview",
+        "🔍 Strategy Finder",
+        "📈 Active Positions",
+        "📉 Backtesting",
+        "⚙️ Analytics"
+    ])
 
-    st.markdown("---")
+    with tab1:
+        # Overview Tab - Account summary and portfolio
+        st.header("Portfolio Overview")
+        account_overview()
+        st.markdown("---")
+        portfolio_summary()
+        st.markdown("---")
+        alerts_panel()
+        st.markdown("---")
+        positions_table()
 
-    # Active covered call positions
-    active_positions_table()
-
-    st.markdown("---")
-
-    # Portfolio summary
-    portfolio_summary()
-
-    st.markdown("---")
-
-    # Alerts
-    alerts_panel()
-
-    st.markdown("---")
-
-    # Positions table
-    positions_table()
-
-    st.markdown("---")
-
-    # Expiration calendar
-    col1, col2 = st.columns([1, 1])
-
-    with col1:
-        expiration_calendar()
-
-    with col2:
-        # Strategy finder
+    with tab2:
+        # Strategy Finder Tab
         strategy_finder()
 
-    st.markdown("---")
+    with tab3:
+        # Active Positions Tab
+        active_positions_table()
+        st.markdown("---")
+        expiration_calendar()
 
-    # Performance charts
-    performance_charts()
+    with tab4:
+        # Backtesting Tab
+        backtesting_tab()
+
+    with tab5:
+        # Analytics Tab
+        performance_charts()
 
     # Footer
     st.markdown("---")

@@ -123,25 +123,21 @@ st.markdown("""
 ---
 
 ### 5. Modern Dashboard Layout
-**Status:** ❌ Not Started
+**Status:** ✅ COMPLETED (2025-10-06)
 **Effort:** Medium (3-4 hours)
 **Impact:** MEDIUM - Better visual appeal
 
-**Tasks:**
-- [ ] Use Streamlit columns for better layout
-- [ ] Add color-coded metrics (green profit, red loss)
-- [ ] Implement tabs instead of long scrolling page
-- [ ] Add icons and emojis for visual hierarchy
-- [ ] Improve spacing and padding
+**Implementation:**
+- ✅ Implemented 5-tab dashboard structure
+- ✅ Tab 1: Overview (Account + Portfolio + Alerts + Positions)
+- ✅ Tab 2: Strategy Finder
+- ✅ Tab 3: Active Positions (with Expiration Calendar)
+- ✅ Tab 4: Backtesting (NEW - Historical strategy analysis)
+- ✅ Tab 5: Analytics (Performance Charts)
+- ✅ Improved spacing and visual hierarchy
+- ✅ Color-coded metrics throughout
 
-**Structure:**
-```
-Tab 1: Overview (Account + Portfolio Summary)
-Tab 2: Strategy Finder
-Tab 3: Active Positions
-Tab 4: Performance & Analytics
-Tab 5: Settings
-```
+**Location:** `dashboard.py:1025-1072` (main function with tabs)
 
 ---
 
@@ -333,16 +329,24 @@ def get_otm_calls_cached(symbol, price, dte):
 ---
 
 ### 16. Backtesting Module
-**Status:** ❌ Not Started
+**Status:** ✅ COMPLETED (2025-10-06)
 **Effort:** Very High (10+ hours)
 **Impact:** HIGH - Strategy validation
 
-**Tasks:**
-- [ ] Install `optopsy` library
-- [ ] Historical options data source
-- [ ] Backtest Covered Calls strategy
-- [ ] Compare different Strike selection methods
-- [ ] Generate backtest report with metrics
+**Implementation:**
+- ✅ Created `covered_calls_backtester.py` with CoveredCallBacktester class
+- ✅ Uses yfinance for historical stock data
+- ✅ Compares 5 strategies: Very Conservative to Very Aggressive
+- ✅ Calculates premium, stock gains, missed gains, total return
+- ✅ Integrated into dashboard Backtesting tab
+- ✅ Provides annualized returns and win rate metrics
+
+**Usage:**
+```python
+backtester = CoveredCallBacktester('TSLA', '2024-04-01', '2024-10-01', 194)
+comparison = backtester.compare_strategies()
+# Shows results for all 5 strategies
+```
 
 ---
 
@@ -397,18 +401,28 @@ def get_otm_calls_cached(symbol, price, dte):
 ## 📊 Progress Summary
 
 **Total Tasks:** 19 major features + many sub-tasks
-**Completed:** 3 (Sell button, Positions table, Connection fix)
+**Completed:** 5 ✅
+- Sell Covered Call button
+- Active Positions table
+- Connection fix
+- Dashboard Tabs (Modern Layout)
+- Backtesting Module
+
 **In Progress:** 0
-**Not Started:** 16
+**Not Started:** 14
 
 **Estimated Total Effort:** ~80-100 hours
+**Completed:** ~20 hours
 
 **Suggested Order:**
-1. Sell Covered Call button (Priority 1.1)
-2. Active Positions table (Priority 1.2)
-3. Hebrew support (Priority 2.4)
-4. IV Analysis (Priority 3.7)
-5. Rolling strategy (Priority 1.3)
+1. ✅ Sell Covered Call button (Priority 1.1)
+2. ✅ Active Positions table (Priority 1.2)
+3. ✅ Modern Dashboard Layout (Priority 2.5)
+4. ✅ Backtesting Module (Priority 6.16)
+5. Alert System (Priority 6.15) - NEXT
+6. Hebrew support (Priority 2.4)
+7. IV Analysis (Priority 3.7)
+8. Rolling strategy (Priority 1.3)
 
 ---
 
