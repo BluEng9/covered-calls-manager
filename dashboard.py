@@ -23,6 +23,7 @@ from covered_calls_system import (
 )
 from ibkr_connector import IBKRConnector, IBKRConfig
 from dashboard_risk_components import render_risk_dashboard, render_position_validator
+from trade_analytics import TradeDatabase, add_analytics_to_dashboard
 from risk_manager import RiskManager
 from demo_mode import DemoIBKRConnector
 from csv_portfolio_loader import CSVPortfolioLoader, PortfolioDataStore
@@ -1079,7 +1080,16 @@ def main():
         backtesting_tab()
 
     with tab5:
-        # Analytics Tab
+        # Analytics Tab - Trade Performance & Database Analytics
+        st.header("📊 Trade Analytics & Performance")
+
+        # Add the full analytics dashboard from trade_analytics.py
+        add_analytics_to_dashboard()
+
+        st.markdown("---")
+
+        # Original performance charts (portfolio-level)
+        st.subheader("📈 Portfolio Performance Charts")
         performance_charts()
 
     # Footer

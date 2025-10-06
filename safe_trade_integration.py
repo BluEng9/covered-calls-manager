@@ -18,6 +18,7 @@ from safety_features import SafetyManager, TradingMode
 from earnings_calendar import EarningsCalendar
 from covered_calls_system import CoveredCallStrategy, RiskLevel
 from ibkr_connector import IBKRConnector
+from trade_analytics import TradeDatabase
 from typing import Dict, Optional
 
 class SafeTradeExecutor:
@@ -33,7 +34,11 @@ class SafeTradeExecutor:
         self.safety = SafetyManager(mode)
         self.calendar = EarningsCalendar()
         self.logger = ExecutionLogger()
-        
+
+        # Analytics & Database
+        self.db = TradeDatabase()
+        self.analytics = TradeAnalytics(self.db)
+
         # Trading state
         self.mode = mode
         self.active_trades_today = 0
@@ -162,7 +167,7 @@ class SafeTradeExecutor:
                 
                 trade_id = trade.order.orderId if trade else None
                 
-                # Log the trade
+                # Log the trade (JSONL backup)
                 self.logger.log_trade({
                     'trade_id': trade_id,
                     'symbol': symbol,
@@ -175,14 +180,29 @@ class SafeTradeExecutor:
                     'mode': self.mode.value,
                     'status': 'EXECUTED'
                 })
-                
+
+                # Save to database for analytics
+                self.db.record_trade({
+                    'symbol': symbol,
+                    'strike': strike,
+                    'expiration': expiration,
+                    'contracts': contracts,
+                    'premium': premium * 100 * contracts,
+                    'delta': delta,
+                    'dte': dte,
+                    'entry_price': current_price,
+                    'strategy': 'covered_call',
+                    'mode': self.mode.value
+                })
+
                 st.success(f"✅ Trade executed successfully! ID: {trade_id}")
+                st.info(f"💾 Trade saved to database for analytics")
                 st.balloons()
-            
+
             # Update daily counter
             self.active_trades_today += 1
             self.safety.todays_trades += 1
-            
+
             result['success'] = True
             result['trade_id'] = trade_id
             result['trade_details'] = trade_request
