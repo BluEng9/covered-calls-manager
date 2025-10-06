@@ -41,6 +41,74 @@
 
 ---
 
+## 🔐 Security & Setup
+
+### ⚠️ IMPORTANT: Protect Your Credentials
+
+**This project handles sensitive financial data. Follow these security best practices:**
+
+✅ **NEVER commit these files to git:**
+- `.env` - Contains your API keys and credentials
+- `config_local.yaml` - Your personal configuration
+- `trades.db` - Your actual trading history
+- Any files with `real`, `live`, or `production` in the name
+
+✅ **Safe to commit:**
+- `.env.example` - Template with NO actual credentials
+- `config.yaml` - Default configuration without secrets
+- All code files (`.py`)
+
+The `.gitignore` file is pre-configured to protect sensitive data. **Always verify before committing!**
+
+### 🔑 Environment Variables Setup
+
+**Step 1:** Copy the template file
+```bash
+cp .env.example .env
+```
+
+**Step 2:** Edit `.env` with your actual credentials
+```bash
+# NEVER commit this file!
+nano .env  # or use your preferred editor
+```
+
+**Step 3:** Fill in your credentials:
+```bash
+# Interactive Brokers Configuration
+IBKR_HOST=127.0.0.1
+IBKR_PORT=7497              # 7497 for paper trading, 7496 for live
+IBKR_CLIENT_ID=1
+IBKR_READONLY=true          # Set to false for live trading
+
+# Trading Risk Limits (IMPORTANT!)
+MAX_POSITION_SIZE_USD=10000
+MAX_DAILY_LOSS_USD=500
+MAX_TOTAL_PORTFOLIO_RISK_PERCENT=5.0
+
+# Database
+DATABASE_PATH=./trades.db
+```
+
+### 🤖 Sharing with AI Assistants (Claude Desktop, etc.)
+
+This project is properly structured for use with AI coding assistants:
+
+✅ **What AI assistants can safely see:**
+- All code files and structure
+- Configuration templates (`.env.example`)
+- Documentation and tests
+- Sample data and demos
+
+❌ **What AI assistants should NEVER see:**
+- Your actual `.env` file
+- `trades.db` with real trading data
+- Any files with actual credentials or account information
+
+**Best Practice:** Always review file contents before sharing with any AI assistant. When in doubt, check if the file is listed in `.gitignore`.
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -53,7 +121,7 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/covered-calls-manager.git
+git clone https://github.com/BluEng9/covered-calls-manager.git
 cd covered-calls-manager
 
 # 2. Create virtual environment
@@ -63,8 +131,12 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Configure settings
-cp config.yaml.example config.yaml
+# 4. Configure environment variables (IMPORTANT!)
+cp .env.example .env
+nano .env  # Edit with your actual credentials
+
+# 5. Configure application settings (optional)
+cp config.yaml.example config.yaml  # If config.yaml.example exists
 # Edit config.yaml with your preferences
 ```
 
