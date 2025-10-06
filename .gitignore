@@ -69,3 +69,6 @@ Thumbs.db
 # Project specific
 portfolio_*.json
 backtest_results/
+execution_logs/
+backups/
+trades.db
