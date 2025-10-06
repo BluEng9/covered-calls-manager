@@ -1,34 +1,77 @@
+# ============================
+# Covered Calls Manager
+# Python Dependencies
+# ============================
+
 # Core Dependencies
-numpy>=1.24.0
-scipy>=1.10.0
-pandas>=2.0.0
+# -----------------
+streamlit>=1.28.0              # Dashboard framework
+pandas>=2.0.0                  # Data manipulation
+numpy>=1.24.0                  # Numerical computing
+plotly>=5.17.0                 # Interactive charts
+pyyaml>=6.0                    # Configuration files
 
-# Interactive Brokers
-ib-async>=2.0.0  # Modern successor to ib-insync
-nest-asyncio>=1.5.0  # For Python 3.13 compatibility
+# IBKR & Options
+# --------------
+ib-async>=2.0.0                # Interactive Brokers API (UPDATED!)
+# Note: Using ib_async instead of deprecated ib_insync
 
-# Web Dashboard
-streamlit>=1.28.0
-plotly>=5.17.0
+# Greeks & Calculations
+# ---------------------
+blackscholes>=0.2.0            # Black-Scholes model
+py-vollib>=1.0.1               # Implied volatility
+scipy>=1.11.0                  # Scientific computing
 
-# Data Visualization
-matplotlib>=3.7.0
-seaborn>=0.12.0
+# Database & Storage
+# ------------------
+sqlalchemy>=2.0.0              # SQL toolkit (optional)
+# sqlite3 - Built-in Python module, no install needed
 
-# Testing
-pytest>=7.4.0
-pytest-cov>=4.1.0
-pytest-asyncio>=0.21.0
+# Logging & Monitoring
+# --------------------
+colorama>=0.4.6                # Colored terminal output
+python-dotenv>=1.0.0           # Environment variables
 
-# Code Quality
-black>=23.0.0
-flake8>=6.0.0
-mypy>=1.5.0
+# Data & APIs
+# -----------
+yfinance>=0.2.28               # Yahoo Finance data
+requests>=2.31.0               # HTTP library
+beautifulsoup4>=4.12.0         # Web scraping
 
 # Utilities
-python-dateutil>=2.8.2
-pytz>=2023.3
+# ---------
+python-dateutil>=2.8.2         # Date handling
+pytz>=2023.3                   # Timezone support
+tqdm>=4.66.0                   # Progress bars
 
-# Advanced Options Pricing & Greeks
-blackscholes>=0.2.0  # Advanced Greeks calculations
-py-vollib>=1.0.1  # Implied Volatility calculations
+# Testing
+# -------
+pytest>=7.4.0                  # Testing framework
+pytest-cov>=4.1.0              # Code coverage
+pytest-mock>=3.11.0            # Mocking
+unittest-xml-reporting>=3.2.0  # XML reports
+
+# Development
+# -----------
+black>=23.7.0                  # Code formatter
+flake8>=6.1.0                  # Linter
+pylint>=2.17.0                 # Code analysis
+mypy>=1.5.0                    # Type checking
+pre-commit>=3.4.0              # Git hooks
+
+# Documentation
+# -------------
+sphinx>=7.1.0                  # Documentation generator
+sphinx-rtd-theme>=1.3.0        # ReadTheDocs theme
+
+# Optional - Alerts
+# -----------------
+# python-telegram-bot>=20.0    # Telegram notifications
+# slack-sdk>=3.21.0            # Slack notifications
+# twilio>=8.5.0                # SMS notifications
+
+# Optional - Advanced
+# -------------------
+# tensorflow>=2.13.0           # Machine learning
+# scikit-learn>=1.3.0          # ML algorithms
+# ta-lib>=0.4.28               # Technical analysis

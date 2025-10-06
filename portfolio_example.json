@@ -1,0 +1,38 @@
+{
+  "positions": [
+    {
+      "id": "CC_AAPL_001",
+      "symbol": "AAPL",
+      "quantity": 2,
+      "strike": 190.0,
+      "expiration": "2025-11-04T15:10:05.642218",
+      "premium": 700.0,
+      "status": "OPEN",
+      "max_profit": 2698.0,
+      "return_if_assigned": 7.494444444444444,
+      "annualized_return": 94.32662835249042
+    },
+    {
+      "id": "CC_MSFT_001",
+      "symbol": "MSFT",
+      "quantity": 1,
+      "strike": 395.0,
+      "expiration": "2025-10-30T15:10:05.642402",
+      "premium": 600.0,
+      "status": "OPEN",
+      "max_profit": 2099.0,
+      "return_if_assigned": 5.523684210526316,
+      "annualized_return": 84.00603070175438
+    }
+  ],
+  "closed_positions": [],
+  "metrics": {
+    "total_positions": 2,
+    "total_stock_value": 75500.0,
+    "total_premium_collected": 1297.0,
+    "total_max_profit": 4797.0,
+    "avg_days_to_expiration": 26.450331125827816,
+    "avg_delta": 0.3101986754966887,
+    "portfolio_return_if_assigned": 6.35364238410596
+  }
+}

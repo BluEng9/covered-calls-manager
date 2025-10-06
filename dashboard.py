@@ -135,21 +135,29 @@ def sidebar_config():
         # Connect/Disconnect button
         if not st.session_state.connected:
             if st.sidebar.button("🔌 Connect to IBKR"):
-                config = IBKRConfig(
-                    host=host,
-                    port=int(port),
-                    client_id=int(client_id),
-                    readonly=readonly
-                )
-                ibkr = IBKRConnector(config)
-                if ibkr.connect():
-                    st.session_state.ibkr = ibkr
-                    st.session_state.connected = True
-                    st.session_state.demo_mode = False
-                    st.sidebar.success("✅ Connected!")
-                    st.rerun()
-                else:
-                    st.sidebar.error("❌ Connection failed")
+                try:
+                    config = IBKRConfig(
+                        host=host,
+                        port=int(port),
+                        client_id=int(client_id),
+                        readonly=readonly
+                    )
+
+                    # Create connector and attempt connection
+                    # The IBKRConnector.connect() method already handles event loop issues
+                    ibkr = IBKRConnector(config)
+
+                    with st.spinner("Connecting to IBKR..."):
+                        if ibkr.connect():
+                            st.session_state.ibkr = ibkr
+                            st.session_state.connected = True
+                            st.session_state.demo_mode = False
+                            st.sidebar.success("✅ Connected!")
+                            st.rerun()
+                        else:
+                            st.sidebar.error("❌ Connection failed")
+                except Exception as e:
+                    st.sidebar.error(f"❌ Connection error: {str(e)}")
         else:
             st.sidebar.success("✅ Connected to IBKR")
             if st.sidebar.button("🔌 Disconnect"):
@@ -254,6 +262,80 @@ def account_overview():
 
     except Exception as e:
         st.error(f"Error fetching account data: {e}")
+
+
+def open_orders_table():
+    """Display open orders (pending/unfilled orders)"""
+    st.header("📋 Open Orders")
+
+    if not st.session_state.connected:
+        st.warning("⚠️ Not connected to IBKR. Please connect in the sidebar.")
+        return
+
+    try:
+        ibkr = st.session_state.ibkr
+
+        # Check if demo mode or real IBKR
+        is_demo = st.session_state.get('demo_mode', False)
+
+        if is_demo:
+            # Demo mode - no open orders
+            st.info("ℹ️ No open orders (Demo Mode)")
+            return
+
+        # Real IBKR - get open orders
+        if not hasattr(ibkr, 'ib'):
+            st.warning("⚠️ IBKR connection not available")
+            return
+
+        # Get all open orders
+        open_orders = ibkr.ib.openTrades()
+
+        if not open_orders:
+            st.info("ℹ️ No open orders")
+            return
+
+        # Build orders list
+        orders_data = []
+        for trade in open_orders:
+            order_data = {
+                'Order ID': trade.order.orderId,
+                'Symbol': trade.contract.symbol,
+                'Type': trade.contract.secType,
+                'Action': trade.order.action,
+                'Quantity': trade.order.totalQuantity,
+                'Order Type': trade.order.orderType,
+                'Status': trade.orderStatus.status,
+                'Filled': trade.orderStatus.filled,
+                'Remaining': trade.orderStatus.remaining,
+                'Avg Fill Price': f"${trade.orderStatus.avgFillPrice:.2f}" if trade.orderStatus.avgFillPrice else "N/A",
+            }
+
+            # Add limit price if available
+            if hasattr(trade.order, 'lmtPrice') and trade.order.lmtPrice:
+                order_data['Limit Price'] = f"${trade.order.lmtPrice:.2f}"
+
+            orders_data.append(order_data)
+
+        # Create DataFrame
+        df = pd.DataFrame(orders_data)
+
+        # Display table
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+        # Add action buttons
+        st.markdown("### Actions")
+        col1, col2 = st.columns([1, 4])
+
+        with col1:
+            if st.button("🔄 Refresh Orders"):
+                st.rerun()
+
+        with col2:
+            st.caption(f"Total open orders: {len(open_orders)}")
+
+    except Exception as e:
+        st.error(f"Error fetching open orders: {e}")
 
 
 def active_positions_table():
@@ -1058,6 +1140,8 @@ def main():
         # Overview Tab - Account summary and portfolio
         st.header("Portfolio Overview")
         account_overview()
+        st.markdown("---")
+        open_orders_table()
         st.markdown("---")
         portfolio_summary()
         st.markdown("---")

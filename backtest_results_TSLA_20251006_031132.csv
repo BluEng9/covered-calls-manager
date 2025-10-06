@@ -1,0 +1,6 @@
+Strategy,Trades,Assigned,Win Rate,Total Premium,Stock Gains,Missed Gains,Total Return,Return %,Annualized %
+"Very Conservative (10% OTM, 45 days)",2,1,50.0%,$3595.73,$3352.32,$1455.00,$6948.05,18.61%,37.11%
+"Conservative (5% OTM, 30 days)",4,2,50.0%,$8164.30,$8342.29,$9659.45,$16506.59,38.99%,77.77%
+"Moderate (3% OTM, 30 days)",4,2,50.0%,$9022.94,$7535.91,$11154.72,$16558.85,39.87%,79.53%
+"Aggressive (2% OTM, 21 days)",5,3,40.0%,$10292.31,$5709.96,$18749.52,$16002.27,40.31%,80.39%
+"Very Aggressive (ATM, 14 days)",8,6,25.0%,$14300.92,$6025.64,$27175.52,$20326.56,50.79%,101.31%

@@ -1,0 +1,6 @@
+Strategy,Trades,Assigned,Win Rate,Total Premium,Stock Gains,Missed Gains,Total Return,Return %,Annualized %
+"Very Conservative (10% OTM, 45 days)",0,0,0.0%,$0.00,$0.00,$0.00,$0.00,0.00%,0.00%
+"Conservative (5% OTM, 30 days)",0,0,0.0%,$0.00,$0.00,$0.00,$0.00,0.00%,0.00%
+"Moderate (3% OTM, 30 days)",0,0,0.0%,$0.00,$0.00,$0.00,$0.00,0.00%,0.00%
+"Aggressive (2% OTM, 21 days)",0,0,0.0%,$0.00,$0.00,$0.00,$0.00,0.00%,0.00%
+"Very Aggressive (ATM, 14 days)",0,0,0.0%,$0.00,$0.00,$0.00,$0.00,0.00%,0.00%

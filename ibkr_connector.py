@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 import pandas as pd
 import logging
+import time
 from covered_calls_system import (
     Stock, OptionContract, OptionType, CoveredCall,
     PositionStatus, GreeksCalculator
@@ -53,53 +54,25 @@ class IBKRConnector:
             return True
 
         try:
-            # Advanced fix for Streamlit asyncio event loop conflict
-            # Streamlit runs in its own event loop, but ib_async needs its own
-            import threading
+            # Simple synchronous connection using util.run()
+            # This handles event loops correctly even in Streamlit
+            import ib_async.util as util
 
-            # Try to disconnect any existing connection first
-            try:
-                if hasattr(self.ib, '_loop') and self.ib._loop:
-                    self.ib.disconnect()
-            except:
-                pass
+            logger.info(f"Connecting to IBKR at {self.config.host}:{self.config.port}")
 
-            # Get or create event loop for this thread
-            try:
-                loop = asyncio.get_running_loop()
-                # If we're in a running loop (Streamlit), we need to use run_in_executor
-                # to avoid "loop already running" error
-                logger.info("Detected running event loop (Streamlit)")
-
-                # Create a new IB instance with fresh event loop
-                self.ib = IB()
-
-                # Use the synchronous connect with timeout
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(
-                        self.ib.connect,
-                        self.config.host,
-                        self.config.port,
-                        clientId=self.config.client_id,
-                        readonly=self.config.readonly,
-                        timeout=10
-                    )
-                    future.result(timeout=15)
-
-            except RuntimeError:
-                # No running loop, we can use connect normally
-                logger.info("No running event loop, using direct connect")
-                self.ib.connect(
-                    self.config.host,
-                    self.config.port,
+            # util.run() handles the event loop automatically
+            util.run(
+                self.ib.connectAsync(
+                    host=self.config.host,
+                    port=self.config.port,
                     clientId=self.config.client_id,
                     readonly=self.config.readonly,
                     timeout=10
                 )
+            )
 
             self.connected = True
-            logger.info(f"Connected to IBKR on {self.config.host}:{self.config.port}")
+            logger.info(f"✅ Connected to IBKR on {self.config.host}:{self.config.port} - self.connected={self.connected}, id(self)={id(self)}")
             return True
 
         except Exception as e:
@@ -127,64 +100,117 @@ class IBKRConnector:
 
     def get_account_summary(self) -> Dict:
         """Get account summary information"""
+        logger.info(f"get_account_summary called, connected={self.connected}, ib={self.ib is not None}")
         if not self.connected:
+            logger.error(f"Not connected to IBKR - self.connected={self.connected}")
             raise ConnectionError("Not connected to IBKR")
 
-        account_values = self.ib.accountSummary()
-        summary = {}
+        try:
+            # Use util.run() to handle event loop properly
+            import ib_async.util as util
 
-        for av in account_values:
-            if av.tag in ['NetLiquidation', 'TotalCashValue', 'BuyingPower',
-                         'GrossPositionValue', 'UnrealizedPnL', 'RealizedPnL']:
-                summary[av.tag] = float(av.value)
+            account_values = util.run(self.ib.accountSummaryAsync())
 
-        return summary
+            summary = {}
+            for av in account_values:
+                if av.tag in ['NetLiquidation', 'TotalCashValue', 'BuyingPower',
+                             'GrossPositionValue', 'UnrealizedPnL', 'RealizedPnL']:
+                    summary[av.tag] = float(av.value)
+
+            return summary
+        except Exception as e:
+            logger.error(f"Error getting account summary: {e}")
+            return {}
 
     def get_stock_positions(self) -> List[Stock]:
         """Get all stock positions in account"""
         if not self.connected:
             raise ConnectionError("Not connected to IBKR")
 
-        positions = self.ib.positions()
-        stocks = []
+        try:
+            # Check if we're in a running event loop (Streamlit)
+            try:
+                loop = asyncio.get_running_loop()
+                in_running_loop = True
+            except RuntimeError:
+                in_running_loop = False
 
-        for pos in positions:
-            if isinstance(pos.contract, IBStock):
-                # Get current market price
-                ticker = self.ib.reqMktData(pos.contract)
-                self.ib.sleep(1)  # Wait for data
+            if in_running_loop:
+                # Use ThreadPoolExecutor to avoid event loop conflict
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(self.ib.positions)
+                    positions = future.result(timeout=10)
+            else:
+                positions = self.ib.positions()
 
-                stock = Stock(
-                    symbol=pos.contract.symbol,
-                    quantity=int(pos.position),
-                    avg_cost=pos.avgCost,
-                    current_price=ticker.marketPrice() or ticker.close
-                )
-                stocks.append(stock)
+            stocks = []
 
-        logger.info(f"Retrieved {len(stocks)} stock positions")
-        return stocks
+            for pos in positions:
+                if isinstance(pos.contract, IBStock):
+                    # Get current market price
+                    if in_running_loop:
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(self.ib.reqMktData, pos.contract)
+                            ticker = future.result(timeout=10)
+                    else:
+                        ticker = self.ib.reqMktData(pos.contract)
+
+                    time.sleep(1)  # Wait for data
+
+                    stock = Stock(
+                        symbol=pos.contract.symbol,
+                        quantity=int(pos.position),
+                        avg_cost=pos.avgCost,
+                        current_price=ticker.marketPrice() or ticker.close
+                    )
+                    stocks.append(stock)
+
+            logger.info(f"Retrieved {len(stocks)} stock positions")
+            return stocks
+        except Exception as e:
+            logger.error(f"Error getting stock positions: {e}")
+            return []
 
     def get_option_positions(self) -> List[Dict]:
         """Get all option positions"""
         if not self.connected:
             raise ConnectionError("Not connected to IBKR")
 
-        positions = self.ib.positions()
-        options = []
+        try:
+            # Check if we're in a running event loop (Streamlit)
+            try:
+                loop = asyncio.get_running_loop()
+                in_running_loop = True
+            except RuntimeError:
+                in_running_loop = False
 
-        for pos in positions:
-            if isinstance(pos.contract, Option):
-                options.append({
-                    'contract': pos.contract,
-                    'position': pos.position,
-                    'avg_cost': pos.avgCost,
-                    'market_value': pos.marketValue,
-                    'unrealized_pnl': pos.unrealizedPNL
-                })
+            if in_running_loop:
+                # Use ThreadPoolExecutor to avoid event loop conflict
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(self.ib.positions)
+                    positions = future.result(timeout=10)
+            else:
+                positions = self.ib.positions()
 
-        logger.info(f"Retrieved {len(options)} option positions")
-        return options
+            options = []
+
+            for pos in positions:
+                if isinstance(pos.contract, Option):
+                    options.append({
+                        'contract': pos.contract,
+                        'position': pos.position,
+                        'avg_cost': pos.avgCost,
+                        'market_value': pos.marketValue,
+                        'unrealized_pnl': pos.unrealizedPNL
+                    })
+
+            logger.info(f"Retrieved {len(options)} option positions")
+            return options
+        except Exception as e:
+            logger.error(f"Error getting option positions: {e}")
+            return []
 
     def get_covered_call_positions(self) -> List[Dict]:
         """
@@ -207,69 +233,94 @@ class IBKRConnector:
         if not self.connected:
             raise ConnectionError("Not connected to IBKR")
 
-        # Get all positions
-        positions = self.ib.positions()
+        try:
+            # Check if we're in a running event loop (Streamlit)
+            try:
+                loop = asyncio.get_running_loop()
+                in_running_loop = True
+            except RuntimeError:
+                in_running_loop = False
 
-        # Separate stocks and options
-        stocks = {}
-        short_calls = []
+            # Get all positions
+            if in_running_loop:
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(self.ib.positions)
+                    positions = future.result(timeout=10)
+            else:
+                positions = self.ib.positions()
 
-        for pos in positions:
-            if isinstance(pos.contract, IBStock):
-                stocks[pos.contract.symbol] = {
-                    'quantity': pos.position,
-                    'avg_cost': pos.avgCost,
-                    'current_price': pos.marketPrice
-                }
-            elif isinstance(pos.contract, Option):
-                if pos.contract.right == 'C' and pos.position < 0:  # Short call
-                    short_calls.append({
-                        'symbol': pos.contract.symbol,
-                        'strike': pos.contract.strike,
-                        'expiry': pos.contract.lastTradeDateOrContractMonth,
-                        'contracts': pos.position,
+            # Separate stocks and options
+            stocks = {}
+            short_calls = []
+
+            for pos in positions:
+                if isinstance(pos.contract, IBStock):
+                    # Calculate current price from market value and position
+                    current_price = pos.marketValue / pos.position if pos.position != 0 else 0
+                    stocks[pos.contract.symbol] = {
+                        'quantity': pos.position,
                         'avg_cost': pos.avgCost,
-                        'market_value': pos.marketValue,
-                        'unrealized_pnl': pos.unrealizedPNL,
-                        'contract': pos.contract
+                        'current_price': current_price
+                    }
+                elif isinstance(pos.contract, Option):
+                    if pos.contract.right == 'C' and pos.position < 0:  # Short call
+                        short_calls.append({
+                            'symbol': pos.contract.symbol,
+                            'strike': pos.contract.strike,
+                            'expiry': pos.contract.lastTradeDateOrContractMonth,
+                            'contracts': pos.position,
+                            'avg_cost': pos.avgCost,
+                            'market_value': pos.marketValue,
+                            'unrealized_pnl': pos.unrealizedPNL,
+                            'contract': pos.contract
+                        })
+
+            # Match short calls with stock holdings (covered calls)
+            covered_positions = []
+
+            for call in short_calls:
+                symbol = call['symbol']
+                if symbol in stocks and stocks[symbol]['quantity'] >= abs(call['contracts']) * 100:
+                    # Calculate days to expiration
+                    from datetime import datetime
+                    expiry_str = call['expiry']
+                    expiry_date = datetime.strptime(expiry_str, '%Y%m%d')
+                    dte = (expiry_date - datetime.now()).days
+
+                    # Get Greeks
+                    if in_running_loop:
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(self.ib.reqMktData, call['contract'], '', False, False)
+                            ticker = future.result(timeout=10)
+                    else:
+                        ticker = self.ib.reqMktData(call['contract'], '', False, False)
+
+                    time.sleep(0.5)
+
+                    delta = getattr(ticker, 'modelGreeks', None)
+                    theta = getattr(ticker, 'modelGreeks', None)
+
+                    covered_positions.append({
+                        'symbol': symbol,
+                        'stock_qty': stocks[symbol]['quantity'],
+                        'stock_price': stocks[symbol]['current_price'],
+                        'option_strike': call['strike'],
+                        'option_expiry': expiry_date,
+                        'option_dte': dte,
+                        'contracts': call['contracts'],
+                        'premium_received': -call['avg_cost'] * abs(call['contracts']) * 100,
+                        'current_option_value': call['market_value'],
+                        'unrealized_pnl': call['unrealized_pnl'],
+                        'delta': delta.delta if delta else None,
+                        'theta': delta.theta if delta else None
                     })
 
-        # Match short calls with stock holdings (covered calls)
-        covered_positions = []
-
-        for call in short_calls:
-            symbol = call['symbol']
-            if symbol in stocks and stocks[symbol]['quantity'] >= abs(call['contracts']) * 100:
-                # Calculate days to expiration
-                from datetime import datetime
-                expiry_str = call['expiry']
-                expiry_date = datetime.strptime(expiry_str, '%Y%m%d')
-                dte = (expiry_date - datetime.now()).days
-
-                # Get Greeks
-                ticker = self.ib.reqMktData(call['contract'], '', False, False)
-                self.ib.sleep(0.5)
-
-                delta = getattr(ticker, 'modelGreeks', None)
-                theta = getattr(ticker, 'modelGreeks', None)
-
-                covered_positions.append({
-                    'symbol': symbol,
-                    'stock_qty': stocks[symbol]['quantity'],
-                    'stock_price': stocks[symbol]['current_price'],
-                    'option_strike': call['strike'],
-                    'option_expiry': expiry_date,
-                    'option_dte': dte,
-                    'contracts': call['contracts'],
-                    'premium_received': -call['avg_cost'] * abs(call['contracts']) * 100,
-                    'current_option_value': call['market_value'],
-                    'unrealized_pnl': call['unrealized_pnl'],
-                    'delta': delta.delta if delta else None,
-                    'theta': delta.theta if delta else None
-                })
-
-        logger.info(f"Retrieved {len(covered_positions)} covered call positions")
-        return covered_positions
+            logger.info(f"Retrieved {len(covered_positions)} covered call positions")
+            return covered_positions
+        except Exception as e:
+            logger.error(f"Error getting covered call positions: {e}")
+            return []
 
     # ==================== Market Data ====================
 
@@ -280,7 +331,7 @@ class IBKRConnector:
 
         contract = IBStock(symbol, exchange, 'USD')
         ticker = self.ib.reqMktData(contract, '', False, False)
-        self.ib.sleep(1)
+        time.sleep(1)
 
         price = ticker.marketPrice() or ticker.last or ticker.close
         return price
@@ -367,7 +418,7 @@ class IBKRConnector:
                     snapshot=False,
                     regulatorySnapshot=False
                 )
-                self.ib.sleep(0.5)  # Brief pause for data
+                time.sleep(0.5)  # Brief pause for data
 
                 # Get Greeks from model calculation if not available from IBKR
                 greeks = ticker.modelGreeks
@@ -591,7 +642,7 @@ class IBKRConnector:
 
         old_ticker = self.ib.reqMktData(old_contract)
         new_ticker = self.ib.reqMktData(new_contract)
-        self.ib.sleep(1)
+        time.sleep(1)
 
         # Calculate net credit
         buyback_cost = old_ticker.ask

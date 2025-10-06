@@ -1,0 +1,230 @@
+# 📋 Covered Calls Manager - Configuration File
+# =====================================
+
+# IBKR Connection Settings
+ibkr:
+  host: "127.0.0.1"
+  port: 7497  # 7497 for Paper Trading, 7496 for Live Trading
+  client_id: 1
+  timeout: 30
+  auto_reconnect: true
+  max_retries: 3
+  
+# Strategy Parameters
+strategy:
+  # Days to Expiration range
+  dte_min: 21
+  dte_max: 45
+  dte_target: 30
+  
+  # Greeks targets
+  delta_min: 0.20
+  delta_max: 0.35
+  delta_target: 0.30
+  
+  # Premium requirements
+  min_premium_dollars: 50
+  min_annual_return_pct: 15.0
+  
+  # Strike selection
+  max_otm_percent: 8.0  # Maximum % out of the money
+  min_otm_percent: 1.0  # Minimum % out of the money
+  
+  # Position sizing
+  max_contracts_per_trade: 10
+  max_positions_per_symbol: 5
+
+# Risk Management
+risk:
+  # Trading limits
+  max_trades_per_day: 5
+  max_position_size_pct: 10.0  # % of portfolio
+  max_sector_exposure_pct: 30.0
+  
+  # Greeks limits
+  max_portfolio_delta: 0.50
+  max_portfolio_theta: -1000
+  
+  # Stop loss
+  enable_stop_loss: true
+  stop_loss_pct: -50.0  # Close if option gains 50%
+  
+  # Assignment protection
+  close_before_earnings: true
+  close_dte_threshold: 5  # Close when < 5 DTE
+  close_itm_threshold: 0.90  # Close when delta > 0.90
+
+# Earnings Calendar
+earnings:
+  enabled: true
+  avoid_days_before: 7
+  avoid_days_after: 2
+  data_source: "yahoo"  # yahoo, alphavantage, or manual
+
+# Trading Modes
+modes:
+  default_mode: "paper"  # demo, paper, or live
+  require_confirmation_live: true
+  enable_demo_data: true
+  
+  paper:
+    enabled: true
+    commission_per_contract: 0.65
+    slippage_percent: 0.5
+  
+  live:
+    enabled: false  # ⚠️ Set to true only when ready!
+    require_2fa: true
+    max_daily_loss: 1000.0
+
+# Database
+database:
+  path: "trades.db"
+  backup_enabled: true
+  backup_frequency_days: 7
+  retention_days: 365
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: "trading.log"
+  max_size_mb: 100
+  backup_count: 5
+  
+  # Log to console as well
+  console_output: true
+  
+  # Separate log files for different components
+  separate_logs:
+    trades: "trades.log"
+    errors: "errors.log"
+    orders: "orders.log"
+
+# Alerts & Notifications
+alerts:
+  enabled: true
+  
+  # Alert conditions
+  on_trade_execution: true
+  on_assignment_risk: true
+  on_connection_loss: true
+  on_error: true
+  
+  # Notification methods
+  email:
+    enabled: false
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    from_address: "your-email@gmail.com"
+    to_addresses:
+      - "alert-email@gmail.com"
+  
+  telegram:
+    enabled: false
+    bot_token: "YOUR_BOT_TOKEN"
+    chat_id: "YOUR_CHAT_ID"
+  
+  slack:
+    enabled: false
+    webhook_url: "YOUR_WEBHOOK_URL"
+
+# Dashboard Settings
+dashboard:
+  title: "Covered Calls Manager"
+  theme: "light"  # light or dark
+  refresh_interval_seconds: 30
+  
+  # Hebrew support
+  enable_rtl: true
+  language: "he"  # en or he
+  
+  # UI preferences
+  show_greeks: true
+  show_iv_analysis: true
+  show_probability: true
+  
+  # Performance
+  cache_enabled: true
+  cache_ttl_seconds: 60
+
+# Backtesting
+backtest:
+  enabled: true
+  data_source: "yahoo"
+  
+  # Historical data
+  start_date: "2023-01-01"
+  lookback_days: 365
+  
+  # Simulation
+  initial_capital: 100000
+  commission_per_contract: 0.65
+  slippage_percent: 0.5
+
+# Development
+development:
+  debug_mode: false
+  mock_data: false
+  test_mode: false
+  
+  # For testing
+  demo_symbols:
+    - "AAPL"
+    - "MSFT"
+    - "TSLA"
+    - "SPY"
+
+# Security
+security:
+  encrypt_credentials: true
+  credential_file: ".credentials.enc"
+  
+  # API keys (use environment variables instead!)
+  use_env_vars: true
+  
+  # Session management
+  session_timeout_minutes: 60
+  require_auth: false  # Set true for multi-user
+
+# Performance Optimization
+performance:
+  # Caching
+  cache_option_chains: true
+  cache_duration_seconds: 60
+  
+  # Parallel processing
+  enable_parallel: true
+  max_workers: 4
+  
+  # Database optimization
+  use_connection_pool: true
+  pool_size: 5
+
+# External APIs (optional)
+apis:
+  # Alternative data sources
+  alpha_vantage:
+    enabled: false
+    api_key: ""
+  
+  finnhub:
+    enabled: false
+    api_key: ""
+  
+  polygon:
+    enabled: false
+    api_key: ""
+
+# Misc
+misc:
+  timezone: "America/New_York"
+  market_hours_only: true
+  
+  # CSV upload
+  csv_upload_path: "uploads/"
+  max_csv_size_mb: 10
+  
+  # Reports
+  generate_daily_report: true
+  generate_weekly_report: true
+  report_email: false

@@ -1,4 +1,10 @@
+# ============================
+# Covered Calls Manager
+# Git Ignore Rules
+# ============================
+
 # Python
+# ------
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,59 +22,166 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Virtual Environment
+# Virtual Environments
+# --------------------
 venv/
 env/
 ENV/
-.venv
+env.bak/
+venv.bak/
+.venv/
 
-# IDE
+# IDEs
+# ----
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.DS_Store
+
+# Jupyter Notebooks
+# -----------------
+.ipynb_checkpoints
+*.ipynb
 
 # Testing
+# -------
 .pytest_cache/
 .coverage
 htmlcov/
 *.cover
-
-# Jupyter
-.ipynb_checkpoints
-*.ipynb
-
-# Environment variables
-.env
-.env.local
-*.secret
+.hypothesis/
+.tox/
 
 # Logs
+# ----
 *.log
 logs/
+*.log.*
 
-# Data files
-*.csv
-*.xlsx
+# Database
+# --------
 *.db
 *.sqlite
+*.sqlite3
+trades.db
+backups/
 
-# IBKR
-*.json.bak
-twsapi_macunix.*.log
+# Configuration (Sensitive)
+# --------------------------
+config_local.yaml
+.env
+.env.local
+*.env
+.credentials
+.credentials.enc
+secrets.yaml
 
-# OS
+# Trading Data (Sensitive)
+# -------------------------
+real_trades.csv
+account_credentials.json
+api_keys.json
+*.key
+*.pem
+
+# Temporary Files
+# ---------------
+temp/
+tmp/
+*.tmp
+*.bak
+*.swp
+
+# OS Files
+# --------
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Project specific
-portfolio_*.json
-backtest_results/
-execution_logs/
-backups/
-trades.db
+# Documentation
+# -------------
+docs/_build/
+site/
+
+# Streamlit
+# ---------
+.streamlit/secrets.toml
+.streamlit/credentials.toml
+
+# Data Files (Optional - if too large)
+# -------------------------------------
+# data/
+# *.csv
+# *.xlsx
+
+# Backups
+# -------
+*.backup
+backup_*/
+
+# PyCharm
+# -------
+.idea/
+*.iml
+
+# VS Code
+# -------
+.vscode/
+*.code-workspace
+
+# Coverage Reports
+# ----------------
+coverage.xml
+*.cover
+.coverage.*
+
+# MyPy
+# ----
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pytest
+# ------
+.pytest_cache/
+
+# Sphinx Documentation
+# --------------------
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# Distribution / Packaging
+# -------------------------
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Project Specific
+# ----------------
+# Add any project-specific ignores here
+portfolio_real.csv
+trades_live.db
+production_config.yaml
